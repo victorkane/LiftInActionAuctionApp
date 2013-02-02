@@ -10,3 +10,5 @@ With the permission of the author, I am committing each Chapter into this public
 Now working on: Chapter 4
 
 Last committed tag: chapter03
+
+See introductory article: http://awebfactory.com/node/502
