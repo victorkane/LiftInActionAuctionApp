@@ -7,6 +7,6 @@ I am basically going through Timothy Perrett's book [Lift in Action](http://my.s
 
 With the permission of the author, I am committing each Chapter into this public repo.
 
-Now working on: Chapter 3
+Now working on: Chapter 4
 
-Last committed tag: chapter02
+Last committed tag: chapter03
