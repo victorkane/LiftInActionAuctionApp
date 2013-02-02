@@ -1,85 +1,63 @@
 package bootstrap.liftweb
 
-import net.liftweb._
-import util._
-import Helpers._
+// framework imports
+import net.liftweb.common._
+import net.liftweb.util._
+import net.liftweb.util.Helpers._
+import net.liftweb.http._
+import net.liftweb.sitemap._
+import net.liftweb.sitemap.Loc._
+import net.liftweb.mapper.{DB,Schemifier,DefaultConnectionIdentifier,StandardDBVendor,MapperRules}
 
-import common._
-import http._
-import js.jquery.JQueryArtifacts
-import sitemap._
-import Loc._
-import mapper._
+// app imports
+import example.travel.model.{Auction,Supplier,Customer,Bid,Order,OrderAuction}
 
-import code.model._
-import net.liftmodules.JQueryModule
-
-
-/**
- * A class that's instantiated early and run.  It allows the application
- * to modify lift's environment
- */
-class Boot {
+class Boot extends Loggable {
   def boot {
-    if (!DB.jndiJdbcConnAvailable_?) {
-      val vendor = 
-	new StandardDBVendor(Props.get("db.driver") openOr "org.h2.Driver",
-			     Props.get("db.url") openOr 
-			     "jdbc:h2:lift_proto.db;AUTO_SERVER=TRUE",
-			     Props.get("db.user"), Props.get("db.password"))
-
-      LiftRules.unloadHooks.append(vendor.closeAllConnections_! _)
-
-      DB.defineConnectionManager(DefaultConnectionIdentifier, vendor)
-    }
-
-    // Use Lift's Mapper ORM to populate the database
-    // you don't need to use Mapper to use Lift... use
-    // any ORM you want
-    Schemifier.schemify(true, Schemifier.infoF _, User)
-
-    // where to search snippet
-    LiftRules.addToPackages("code")
-
-    // Build SiteMap
-    def sitemap = SiteMap(
-      Menu.i("Home") / "index" >> User.AddUserMenusAfter, // the simple way to declare a menu
-
-      // more complex because this menu allows anything in the
-      // /static path to be visible
-      Menu(Loc("Static", Link(List("static"), true, "/static/index"), 
-	       "Static Content")))
-
-    def sitemapMutators = User.sitemapMutator
-
-    // set the sitemap.  Note if you don't want access control for
-    // each page, just comment this line out.
-    LiftRules.setSiteMapFunc(() => sitemapMutators(sitemap))
-
-    //Init the jQuery module, see http://liftweb.net/jquery for more information.
-    LiftRules.jsArtifacts = JQueryArtifacts
-    JQueryModule.InitParam.JQuery=JQueryModule.JQuery172
-    JQueryModule.init()
-
-    //Show the spinny image when an Ajax call starts
-    LiftRules.ajaxStart =
-      Full(() => LiftRules.jsArtifacts.show("ajax-loader").cmd)
+    LiftRules.addToPackages("example.travel")
     
-    // Make the spinny image go away when it ends
-    LiftRules.ajaxEnd =
-      Full(() => LiftRules.jsArtifacts.hide("ajax-loader").cmd)
-
-    // Force the request to be UTF-8
-    LiftRules.early.append(_.setCharacterEncoding("UTF-8"))
-
-    // What is the function to test if a user is logged in?
-    LiftRules.loggedInTest = Full(() => User.loggedIn_?)
-
-    // Use HTML5 for rendering
-    LiftRules.htmlProperties.default.set((r: Req) =>
-      new Html5Properties(r.userAgent))    
-
-    // Make a transaction span the whole HTTP request
+    MapperRules.columnName = (_,name) => StringHelpers.snakify(name)
+    MapperRules.tableName =  (_,name) => StringHelpers.snakify(name)
+    
+    // set the JNDI name that we'll be using
+    DefaultConnectionIdentifier.jndiName = "jdbc/liftinaction"
+    
+    // handle JNDI not being avalible
+    if (!DB.jndiJdbcConnAvailable_?){
+      logger.warn("No JNDI configured - making a direct application connection") 
+      DB.defineConnectionManager(DefaultConnectionIdentifier, Database)
+      // make sure cyote unloads database connections before shutting down
+      LiftRules.unloadHooks.append(() => Database.closeAllConnections_!()) 
+    }
+    
+    // automatically create the tables
+    Schemifier.schemify(true, Schemifier.infoF _, 
+      Bid, Auction, Supplier, Customer, Order, OrderAuction)
+    
+    // setup the 404 handler 
+    LiftRules.uriNotFound.prepend(NamedPF("404handler"){
+      case (req,failure) => NotFoundAsTemplate(ParsePath(List("404"),"html",false,false))
+    })
+    
+    LiftRules.setSiteMap(SiteMap(List(
+      Menu("Home") / "index" >> LocGroup("public"),
+      Menu("Auctions") / "auctions" >> LocGroup("public"),
+      Menu("Auction Detail") / "auction" >> LocGroup("public") >> Hidden,
+      Menu("Admin") / "admin" / "index" >> LocGroup("admin"),
+      Menu("Suppliers") / "admin" / "suppliers" >> LocGroup("admin") submenus(Supplier.menus : _*),
+      Menu("Auction Admin") / "admin" / "auctions" >> LocGroup("admin") submenus(Auction.menus : _*)
+    ) ::: Customer.menus: _*))
+    
+    // setup the load pattern
     S.addAround(DB.buildLoanWrapper)
+    
+    // make requests utf-8
+    LiftRules.early.append(_.setCharacterEncoding("UTF-8"))
   }
+  
+  object Database extends StandardDBVendor(
+    Props.get("db.class").openOr("org.h2.Driver"),
+    Props.get("db.url").openOr("jdbc:h2:database/temp"),
+    Props.get("db.user"),
+    Props.get("db.pass"))
 }
