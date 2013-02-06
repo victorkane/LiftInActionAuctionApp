@@ -23,7 +23,8 @@ project/plugins/project/
 .settings/
 build.sbt
 database/
-lift_proto.db.h2.db
+lift_proto.db.*.db
+liftinaction.*.db
 project/
 sbt
 sbt-launch-0.12.1.jar

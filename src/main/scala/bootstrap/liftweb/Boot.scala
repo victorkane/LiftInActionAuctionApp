@@ -33,6 +33,13 @@ class Boot extends Loggable {
     // automatically create the tables
     Schemifier.schemify(true, Schemifier.infoF _, 
       Bid, Auction, Supplier, Customer, Order, OrderAuction)
+      
+    if (Props.devMode || Props.testMode) {
+      LiftRules.liftRequest.append({case r if (r.path.partPath match {
+          case "console" :: _ => true
+          case _ => false}
+        ) => false})
+    }
     
     // setup the 404 handler 
     LiftRules.uriNotFound.prepend(NamedPF("404handler"){
