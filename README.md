@@ -11,6 +11,7 @@ With the permission of the author, I am committing each Chapter into this public
 This repo is the src directory only.
 
 | Chapter | Tag | Articles of referencing |
+| ------ | ------ | -----: |
 | Chapter 2 | chapter02 | http://awebfactory.com/node/502 |
 | Chapter 3 | chapter03 | http://awebfactory.com/node/503 |
 
